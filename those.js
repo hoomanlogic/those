@@ -111,6 +111,9 @@ var notLike = function (matchObj) {
             isLike = false;
          }
       }
+      else if (typeof matchObj === 'function') {
+         isLike = matchObj(this[i]);
+      }
       else {
          for (var matchProp in matchObj) {
             if (matchObj.hasOwnProperty(matchProp)) {
@@ -148,6 +151,9 @@ var like = function (matchObj) {
          if (this[i] !== matchObj) {
             isLike = false;
          }
+      }
+      else if (typeof matchObj === 'function') {
+         isLike = matchObj(this[i]);
       }
       else {
          for (var matchProp in matchObj) {
@@ -377,7 +383,7 @@ var pluck = function (prop) {
    for (var i = 0; i < this.length; i++) {
       plucked.push(this[i][prop]);
    }
-   return plucked;
+   return extend(plucked);
 };
 
 var those = function (array) {

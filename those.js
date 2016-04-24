@@ -280,7 +280,7 @@ var extensions = {
         for (var i = 0; i < this.length; i++) {
             plucked.push(this[i][prop]);
         }
-        return plucked;
+        return extend(plucked);
     },
     
     max: function (prop) {

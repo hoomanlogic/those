@@ -336,7 +336,7 @@ var extensions = {
     // },
 };
 
-export function areAlike (source, matchArg) {
+function areAlike (source, matchArg) {
     var matchArgType, matchProp;
     
     // Get normalized type of object
@@ -373,7 +373,7 @@ export function areAlike (source, matchArg) {
     }
 }
 
-export function areExact (source, matchArg) {
+function areExact (source, matchArg) {
     var matchArgType, matchProp, sourceProp;
     
     // Get normalized type of object
@@ -428,9 +428,9 @@ export function areExact (source, matchArg) {
 }
 
 // get sane type names for string, number, date, and array
-export function getType (arg) {
+function getType (arg) {
     return Object.prototype.toString.call(arg).slice(8, -1).toLowerCase();
 }
 
 // Export extension function wrapper
-export default extend;
+module.exports = extend;

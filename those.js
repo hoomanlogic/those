@@ -1,6 +1,6 @@
 /**
  * @module      those
- * @description Library for semantically querying an array without 
+ * @description Library for semantically querying an array without
  *              hijacking Array.prototype or modifying the source array.
  * @example     var people = [{ name: 'Alayna', age: 9 }, { name: 'Braylon', age: 6 }, { name: 'David', age: 35}];
  *              those(people).first({ name: 'Braylon'});   // get the first person with the name 'Braylon'
@@ -15,29 +15,36 @@
 /**
  * Extend a copy of an array, or array-ize an object by keys, with helpful functions.
  * Array properties of the same name take precedence over extensions.
+ * @private
  */
 var extend = function (obj) {
-    if (getType(obj) === 'array') {
-        return Object.assign(obj.slice(), extensions, obj);
+    // Avoid re-extending an array
+    if (obj && obj.__those_strap__) {
+        return obj;
+    }
+    // Clone the array
+    if (getType(obj) === Type.Array) {
+        return Object.assign(obj.slice(), extensions);
     }
     else {
         var objArray = Object.keys(obj).map(function (key) {
             return obj[key];
         });
-        return Object.assign(objArray.slice(), extensions, objArray);
+        return Object.assign(objArray, extensions);
     }
 };
 
 var extensions = {
-
+    __those_strap__: true, // eslint-disable-line camelcase
     /*************************************************************
      *  MATCH ARRAY PREDICATE FUNCTIONS
      *************************************************************/
+    /** @memberof those */
     hasAll: function (matchArray) {
         for (var i = 0; i < matchArray.length; i++) {
             var matched = false;
             for (var j = 0; j < this.length; j++) {
-                if (areAlike(this[j], matchArray[i])) {
+                if (areAlike(this[j], matchArray[i], i, this)) {
                     matched = true;
                 }
             }
@@ -47,11 +54,12 @@ var extensions = {
         }
         return true;
     },
-    
+
+    /** @memberof those */
     hasAny: function (matchArray) {
         for (var i = 0; i < matchArray.length; i++) {
             for (var j = 0; j < this.length; j++) {
-                if (areAlike(this[j], matchArray[i])) {
+                if (areAlike(this[j], matchArray[i], i, this)) {
                     return true;
                 }
             }
@@ -59,6 +67,7 @@ var extensions = {
         return false;
     },
 
+    /** @memberof those */
     hasOnly: function (matchArray) {
         // Must be the same length (quick check)
         if (this.length !== matchArray.length) {
@@ -68,7 +77,7 @@ var extensions = {
         for (var i = 0; i < matchArray.length; i++) {
             var matched = false;
             for (var j = 0; j < this.length; j++) {
-                if (areAlike(this[j], matchArray[i])) {
+                if (areAlike(this[j], matchArray[i], i, this)) {
                     matched = true;
                 }
             }
@@ -84,10 +93,11 @@ var extensions = {
     /*************************************************************
      *  MATCH ARGUMENT PREDICATE FUNCTIONS
      *************************************************************/
+    /** @memberof those */
     has: function (matchArg) {
         var i;
         for (i = 0; i < this.length; i++) {
-            if (areAlike(this[i], matchArg)) {
+            if (areAlike(this[i], matchArg, i, this)) {
                 return true;
             }
         }
@@ -104,7 +114,8 @@ var extensions = {
      * If it is an object, every property and value supplied in the object must exist in the array item to return a positive match.
      * If it is a string, a literal string comparison is done of the array item and the match string.
      * If it is undefined, then the first item in the array is removed.
-     * @return {array} Returns 'this' for functional chaining.
+     * @returns {array} Returns 'this' for functional chaining.
+     * @memberof those
      */
     flick: function (matchArg, onFlick) {
         var flicked;
@@ -119,7 +130,7 @@ var extensions = {
 
         for (var i = 0; i < this.length; i++) {
             // If all match props matched, then add to result
-            if (areAlike(this[i], matchArg)) {
+            if (areAlike(this[i], matchArg, i, this)) {
                 flicked = this.splice(i, 1);
                 if (onFlick) {
                     onFlick(flicked);
@@ -131,43 +142,46 @@ var extensions = {
         // in-place array operation always returns self
         return this;
     },
-    
+
+    /** @memberof those */
     like: function (matchArg) {
         var matches = [];
-        
+
         for (var i = 0; i < this.length; i++) {
             // If alike, then add to result
-            if (areAlike(this[i], matchArg)) {
+            if (areAlike(this[i], matchArg, i, this)) {
                 matches.push(this[i]);
             }
         }
-        
+
         // Return new array of matched items
-        return extend(matches);
+        return Object.assign(matches, extensions);
     },
-    
+
+    /** @memberof those */
     notLike: function (matchArg) {
         var matches = [];
-        
+
         for (var i = 0; i < this.length; i++) {
             // If not alike, add to result
-            if (!areAlike(this[i], matchArg)) {
+            if (!areAlike(this[i], matchArg, i, this)) {
                 matches.push(this[i]);
             }
         }
-        
+
         // Return new array of matched items
-        return extend(matches);
+        return Object.assign(matches, extensions);
     },
-    
+
     /**
      * Add an item to the array if it does not exist, and remove it from the array if it does exist.
      * @param {function, object, string} item - The item in the array to be toggled.
-     * @return {array} Returns 'this' for functional chaining.
+     * @returns {array} Returns 'this' for functional chaining.
+     * @memberof those
      */
     toggle: function (item) {
         for (var i = 0; i < this.length; i++) {
-            if (areAlike(this[i], item)) {
+            if (areAlike(this[i], item, i, this)) {
                 // exists, remove it
                 this.splice(i, 1);
                 return this;
@@ -183,6 +197,7 @@ var extensions = {
      *************************************************************/
     /**
      * Returns the array in reverse order.
+     * @memberof those
      */
     flip: function () {
         this.reverse();
@@ -190,55 +205,46 @@ var extensions = {
     },
 
     /**
-     * Returns the last num of items in the array, 
+     * Returns the last num of items in the array,
      * or all if num is greater than array length.
+     * @memberof those
      */
     last: function (num) {
-        return extend(this.slice(-(num)));
+        return Object.assign(this.slice(-(num)), extensions);
     },
-    
+
     /**
      * Returns the array sorted inline by given prop.
+     * @memberof those
      */
     order: function (prop) {
-
         this.sort(function (a, b) {
-            var am, bm;
+            let descOrder = false;
 
-            if (typeof prop === 'function') {
-                am = prop(a);
-                bm = prop(b);
-            }
-            else if (prop) {
-                if (typeof a[prop] === 'string' && typeof b[prop] === 'string') {
-                    am = a[prop].toLowerCase();
-                    bm = b[prop].toLowerCase();
-                }
-                else {
-                    am = a[prop];
-                    bm = b[prop];
-                }
-            }
-            else if (typeof a === 'string' && typeof b === 'string') {
-                am = a.toLowerCase();
-                bm = b.toLowerCase();
-            }
-            else {
-                am = a;
-                bm = b;
-            }
-
-            return am > bm ? 1 : (am < bm ? -1 : 0);
+            return processOrdering(a, b, prop, descOrder);
         });
+
         return this;
     },
-    
+
+    /** @memberof those */
+    orderDesc: function (prop) {
+        this.sort(function (a, b) {
+            let descOrder = true;
+
+            return processOrdering(a, b, prop, descOrder);
+        });
+
+        return this;
+    },
+
     /**
-     * Returns the first num of items in the array, 
+     * Returns the first num of items in the array,
      * or all if num is greater than array length.
+     * @memberof those
      */
     top: function (num) {
-        return extend(this.slice(0, num));
+        return Object.assign(this.slice(0, num), extensions);
     },
 
     /*************************************************************
@@ -250,6 +256,7 @@ var extensions = {
      * it will be passed each item in the array and expects a boolean return value indicating a positive match.
      * If it is an object, every property and value supplied in the object must exist in the array item to return a positive match.
      * If it is a string, a literal string comparison is done of the array item and the match string.
+     * @memberof those
      */
     first: function (matchArg) {
         // top 1
@@ -264,25 +271,48 @@ var extensions = {
 
         for (var i = 0; i < this.length; i++) {
             // If all match props matched, then add to result
-            if (areAlike(this[i], matchArg)) {
+            if (areAlike(this[i], matchArg, i, this)) {
                 return this[i];
             }
         }
         return null;
     },
-    
+
+    /** @memberof those */
+    index: function (matchArg) {
+        // top 1
+        if (matchArg === undefined) {
+            if (this.length === 0) {
+                return -1;
+            }
+            else {
+                return 0;
+            }
+        }
+
+        for (var i = 0; i < this.length; i++) {
+            // If all match props matched, then add to result
+            if (areAlike(this[i], matchArg, i, this)) {
+                return i;
+            }
+        }
+        return -1;
+    },
+
     /**
      * Return an array of values for a given property.
      * @param {string} prop - The property to pluck into a new array.
+     * @memberof those
      */
     pluck: function (prop) {
         var plucked = [];
         for (var i = 0; i < this.length; i++) {
             plucked.push(this[i][prop]);
         }
-        return extend(plucked);
+        return plucked;
     },
-    
+
+    /** @memberof those */
     max: function (prop) {
         var result = null;
         for (var i = 0; i < this.length; i++) {
@@ -293,6 +323,7 @@ var extensions = {
         return result;
     },
 
+    /** @memberof those */
     min: function (prop) {
         var result = null;
         for (var i = 0; i < this.length; i++) {
@@ -302,7 +333,7 @@ var extensions = {
         }
         return result;
     },
-    
+
     /*************************************************************
      * SEMANTIC FUNCTIONS
      *************************************************************/
@@ -315,6 +346,7 @@ var extensions = {
      * If it is a string, a literal string comparison is done of the array item and the match string.
      * @param {function} foundCallback - The callback(item) that will be called if a match is found.
      * @param {function?} notFoundCallback - The callback(item) that will be called if NO match is found. (Optional)
+     * @memberof those
      */
     forFirst: function (matchArg, foundCallback, notFoundCallback) {
         var item = this.first(matchArg);
@@ -325,7 +357,7 @@ var extensions = {
             notFoundCallback(matchArg);
         }
     },
-    
+
     /**
      * Return a copy of the array (not extended)
      */
@@ -336,19 +368,23 @@ var extensions = {
     // },
 };
 
-function areAlike (source, matchArg) {
+function areAlike (source, matchArg, index, array) {
     var matchArgType, matchProp;
-    
+
     // Get normalized type of object
     matchArgType = getType(matchArg);
-    
-    if (['string', 'number', 'date'].indexOf(matchArgType) > -1) {
+
+    if (source !== null && source !== undefined && (matchArg === null || matchArg === undefined) ||
+        matchArg !== null && matchArg !== undefined && (source === null || source === undefined)) {
+        return false;
+    }
+    else if ([ Type.String, Type.Number, Type.Date, Type.Bool ].indexOf(matchArgType) > -1) {
         // Simple equals comparison
         return source === matchArg;
     }
     else if (matchArgType === 'function') {
         // Predicate function comparison
-        return matchArg(source);
+        return matchArg(source, index, array);
     }
     else {
         // Object props comparison
@@ -360,10 +396,10 @@ function areAlike (source, matchArg) {
                     return false;
                 }
                 // A nested array would need to have exactly the same array items
-                if (matchPropType === 'array' && !extend(matchArg[matchProp]).hasOnly(source[matchProp])) {
+                if (matchPropType === Type.Array && !extend(matchArg[matchProp]).hasOnly(source[matchProp])) {
                     return false;
                 }
-                else if (!areAlike(source[matchProp], matchArg[matchProp])) {
+                else if (!areAlike(source[matchProp], matchArg[matchProp], index, array)) {
                     return false;
                 }
             }
@@ -373,13 +409,17 @@ function areAlike (source, matchArg) {
     }
 }
 
-function areExact (source, matchArg) {
+function areExact (source, matchArg, index, array) {
     var matchArgType, matchProp, sourceProp;
-    
+
     // Get normalized type of object
     matchArgType = getType(matchArg);
-    
-    if (['string', 'number', 'date'].indexOf(matchArgType) > -1) {
+
+    if (source !== null && source !== undefined && (matchArg === null || matchArg === undefined) ||
+        matchArg !== null && matchArg !== undefined && (source === null || source === undefined)) {
+        return false;
+    }
+    else if ([ Type.String, Type.Number, Type.Date, Type.Bool ].indexOf(matchArgType) > -1) {
         // Simple equals comparison
         return source === matchArg;
     }
@@ -397,10 +437,10 @@ function areExact (source, matchArg) {
                     return false;
                 }
                 // A nested array would need to have exactly the same array items
-                if (matchPropType === 'array' && !extend(matchArg[matchProp]).hasOnly(source[matchProp])) {
+                if (matchPropType === Type.Array && !extend(matchArg[matchProp]).hasOnly(source[matchProp])) {
                     return false;
                 }
-                else if (!areAlike(source[matchProp], matchArg[matchProp])) {
+                else if (!areAlike(source[matchProp], matchArg[matchProp], index, array)) {
                     return false;
                 }
             }
@@ -414,10 +454,10 @@ function areExact (source, matchArg) {
                     return false;
                 }
                 // A nested array would need to have exactly the same array items
-                if (sourcePropType === 'array' && !extend(source[sourceProp]).hasOnly(matchArg[sourceProp])) {
+                if (sourcePropType === Type.Array && !extend(source[sourceProp]).hasOnly(matchArg[sourceProp])) {
                     return false;
                 }
-                else if (!areAlike(matchArg[sourceProp], source[sourceProp])) {
+                else if (!areAlike(matchArg[sourceProp], source[sourceProp], index, array)) {
                     return false;
                 }
             }
@@ -427,9 +467,74 @@ function areExact (source, matchArg) {
     }
 }
 
-// get sane type names for string, number, date, and array
-function getType (arg) {
+/*************************************************************
+ * HELPER FUNCTIONS
+ *************************************************************/
+/**
+ * Get sane type names for array, date, and null, as well as string, number, object, and undefined
+ * @param {*} arg
+ */
+export function getType (arg) {
     return Object.prototype.toString.call(arg).slice(8, -1).toLowerCase();
+}
+
+/**
+ * Object Map of Native types
+ * @memberof type
+ */
+export const Type = {
+    Array: 'array',
+    Bool: 'boolean',
+    Date: 'date',
+    Error: 'error',
+    Func: 'function',
+    Null: 'null',
+    Number: 'number',
+    Object: 'object',
+    String: 'string',
+    Undefined: 'undefined',
+};
+
+function processOrdering (a, b, prop, descOrder) {
+    var am, bm, result;
+
+    if (getType(prop) === Type.Func) {
+        am = prop(a);
+        bm = prop(b);
+    }
+    else if (prop) {
+        if (getType(a[prop]) === Type.String && getType(b[prop]) === Type.String) {
+            am = a[prop].toLowerCase();
+            bm = b[prop].toLowerCase();
+        }
+        else {
+            am = a[prop];
+            bm = b[prop];
+        }
+    }
+    else if (getType(a) === Type.String && getType(b) === Type.String) {
+        am = a.toLowerCase();
+        bm = b.toLowerCase();
+    }
+    else {
+        am = a;
+        bm = b;
+    }
+
+    // If values for comparison are strings, sort them alphanumerically
+    if (getType(am) === Type.String && getType(bm) === Type.String) {
+        result = am.localeCompare(bm, undefined, { numeric: true }) > 0 ? 1 : (am.localeCompare(bm, undefined, { numeric: true }) < 0 ? -1 : 0);
+    }
+    // Else sort the values for comparison normally
+    else {
+        result = am > bm ? 1 : (am < bm ? -1 : 0);
+    }
+
+    if (descOrder) {
+        result *= -1;
+    }
+
+    return result;
 }
 
 // Export extension function wrapper

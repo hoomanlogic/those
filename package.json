@@ -1,11 +1,21 @@
 {
-  "name": "those",
-  "version": "0.1.0",
-  "description": "",
+  "name": "@hoomanlogic/those",
+  "version": "0.2.0",
+  "description": "Non-destructive syntactic sugar for arrays and object maps",
   "main": "those.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "files": [
+    "those.js"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
-  "author": "",
+  "keywords": [
+    "syntactic sugar",
+    "functional programming",
+    "functional chaining",
+    "array manipulation",
+    "object manipulation"
+  ],
+  "author": "Geoffrey Floyd <geoffrey.floyd@hoomanlogic.com>",
   "license": "ISC"
 }

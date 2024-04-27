@@ -538,4 +538,4 @@ function processOrdering (a, b, prop, descOrder) {
 }
 
 // Export extension function wrapper
-module.exports = extend;
+export default extend;
